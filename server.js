@@ -3,21 +3,54 @@ const app = express()
 const bodyParser = require('body-parser')
 
 const cors = require('cors')
-
+const mongo = require('mongodb')
 const mongoose = require('mongoose')
-mongoose.connect(process.env.MLAB_URI || 'mongodb://localhost/exercise-track' )
+
+var port = process.env.PORT || 3000;
+
+mongoose.connect(process.env.MONGOLAB_URI);
 
 app.use(cors())
-
 app.use(bodyParser.urlencoded({extended: false}))
 app.use(bodyParser.json())
 
 
 app.use(express.static('public'))
+
+var userSchema = mongoose.Schema({
+  username: {
+    type: String,
+    required: true
+  }
+})
+
+var User = mongoose.model('User', userSchema);
+
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/views/index.html')
 });
 
+app.post('/api/exercise/new-user',  (req, res) => {
+  var user = new User({
+    username: req.body.username
+  });
+  
+   user.save(function (err) {
+  if (err) console.log(err);
+  });
+
+  res.json({
+    username: user.username,
+    _id: user._id
+  })    
+})
+
+app.get('/test', (req, res) => {
+  User.findOne({username: 'moshe2'}, (err, data) => {
+    if (err) console.log('no user found');
+    res.send(data)
+  })
+})
 
 // Not found middleware
 app.use((req, res, next) => {
