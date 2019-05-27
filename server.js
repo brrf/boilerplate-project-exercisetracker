@@ -18,10 +18,17 @@ app.use(bodyParser.json())
 app.use(express.static('public'))
 
 var userSchema = mongoose.Schema({
-  username: {
-    type: String,
-    required: true
-  }
+  username: 
+    {
+      type: String,
+      required: true,
+      unique: true
+    },
+  exercises: 
+    {
+      type: [{description: String, duration: Number, date: Date}],
+      required: false
+    }
 })
 
 var User = mongoose.model('User', userSchema);
@@ -45,10 +52,64 @@ app.post('/api/exercise/new-user',  (req, res) => {
   })    
 })
 
-app.get('/test', (req, res) => {
-  User.findOne({username: 'moshe2'}, (err, data) => {
-    if (err) console.log('no user found');
-    res.send(data)
+app.get('/api/exercise/users', (req, res) => {
+  User.find({}, '_id username', (err, data) => {
+    if (err) console.log(err);
+    res.json(data)
+  })
+})
+
+app.get('/api/exercise/log/', (req, res) => {
+  if (!req.query.userId) return res.send('must provide a userId to query')
+  let {from, to, limit} = req.query
+  User.findById(req.query.userId, (err, data) => {
+    let exercises = data.exercises
+    let response = {
+      _id: data._id,
+      username: data.username,
+    }
+    if (err) return res.send('no such user');
+    if(!isNaN(limit)) {
+      response.limit = limit
+      exercises = exercises.slice(0, limit)
+    }
+    if(to) {
+      to = new Date(to);
+      response.to = to;
+      exercises = exercises.filter(function(item) {
+        return item.date <= to
+      });
+    }
+    if (from) {
+      from = new Date(from);
+      response.from = from;
+      exercises = exercises.filter(function(item) {
+        return item.date >= from
+      })
+    }
+    response.log = exercises;
+    
+    res.json(response)
+  })
+});
+app.post('/api/exercise/add', (req, res) => {
+  if (!req.body.date) {
+    req.body.date = new Date();
+  }
+             
+  User.findByIdAndUpdate(req.body.userId, {$push: {exercises: {
+    description: req.body.description,
+    duration: req.body.duration,
+    date: req.body.date                     
+    }
+  }}, (err, data) => {
+    if (err) console.log(err);
+    res.json({
+      username: data.username,
+      description: req.body.description,
+      duration: req.body.duration,
+      date: req.body.date
+    })
   })
 })
 
